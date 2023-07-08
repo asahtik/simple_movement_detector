@@ -1,4 +1,6 @@
-#include <iostream>
+#ifndef OPTICAL_FLOW_H
+#define OPTICAL_FLOW_H
+
 #include "opencv2/opencv.hpp"
 
 typedef unsigned int uint;
@@ -58,12 +60,11 @@ void get_frame_derivs(cv::Mat im1, cv::Mat im2, const deriv_params& params, cv::
     cv::addWeighted(I1y, 0.5, I2y, 0.5, 0.0, out_dy);
 }
 
-void harris_corner(const cv::Mat& im1, const cv::Mat& im2, const harris_corner_params& params, cv::Mat& out_mask) {
+void harris_corner(const cv::Mat& im1, const cv::Mat& im2, const harris_corner_params& params, cv::Mat& out_response) {
     cv::Mat response1, response2;
     cv::cornerHarris(im1, response1, params.neighbourhood_size, params.sobel_size, params.k, cv::BORDER_REPLICATE);
     cv::cornerHarris(im2, response2, params.neighbourhood_size, params.sobel_size, params.k, cv::BORDER_REPLICATE);
-    cv::addWeighted(response1, 0.5, response2, 0.5, 0.0, response1);
-    out_mask = response1 > params.threshold;
+    cv::addWeighted(response1, 0.5, response2, 0.5, 0.0, out_response);
 }
 
 void lucaskanade_flow(const cv::Mat& Ix, const cv::Mat& Iy, const cv::Mat& It,  const lucas_kanade_params& params, cv::Mat& out_u, cv::Mat& out_v) {
@@ -103,12 +104,14 @@ void hornschunck_flow(const cv::Mat& Ix, const cv::Mat& Iy, const cv::Mat& It,  
     cv::Mat Ix2 = Ix.mul(Ix);
     cv::Mat Iy2 = Iy.mul(Iy);
 
+    // D = Ix2 + Iy2 + lambda
     cv::Mat det = Ix2 + Iy2 + params.lambda;
 
     cv::Mat u_prev = out_u.clone();
     cv::Mat v_prev = out_v.clone();
 
     for (uint i = 0; i < params.iterations; ++i) {
+        // P = (It + Ix*u + Iy*v) / D
         cv::Mat P = (It + Ix.mul(u_prev) + Iy.mul(v_prev)) / det;
 
         cv::subtract(u_prev, Ix.mul(P), out_u);
@@ -131,38 +134,22 @@ void calculate_flow(cv::Mat im1, cv::Mat im2, const flow_params& params, cv::Mat
 
     lucaskanade_flow(Ix, Iy, It, params.lucas_kanade_params, out_u, out_v);
     if (params.sparse) {
-        cv::Mat mask;
-        harris_corner(im1, im2, params.harris_corner_params, mask);
+        cv::Mat response;
+        harris_corner(im1, im2, params.harris_corner_params, response);
+        cv::Mat mask = response < params.harris_corner_params.threshold;
         out_u = out_u.setTo(0.0, mask);
         out_v = out_v.setTo(0.0, mask);
     }
     if (params.horn_schunck_params.iterations > 0) {
         hornschunck_flow(Ix, Iy, It, params.horn_schunck_params, out_u, out_v);
         if (params.sparse) {
-            cv::Mat mask;
-            harris_corner(im1, im2, params.harris_corner_params, mask);
+            cv::Mat response;
+            harris_corner(im1, im2, params.harris_corner_params, response);
+            cv::Mat mask = response < params.harris_corner_params.threshold;
             out_u = out_u.setTo(0.0, mask);
             out_v = out_v.setTo(0.0, mask);
         }
     }
 }
 
-int main(int argc, char** argv) {
-    cv::VideoCapture cap(0);
-    if (!cap.isOpened()) {
-        std::cout << "Camera not found" << std::endl;
-        return -1;
-    }
-    cv::Mat frame1;
-    bool initialised = false;
-    while (true) {
-        cv::Mat frame2;
-        cap >> frame2;
-        if (!initialised) {
-            frame1 = frame2;
-            initialised = true;
-            continue;
-        }
-        // TODO
-    }
-}
+#endif

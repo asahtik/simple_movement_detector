@@ -11,7 +11,12 @@ find_package(OpenCV REQUIRED)
 message(STATUS "OpenCV library status:")
 message(STATUS "    dirs:  ${OpenCV_INCLUDE_DIRS}")
 
-add_executable(movement_detector main.cpp)
+file(GLOB HEADERIMPLS "src/*.hpp")
+
+message(STATUS "Header files:")
+message(STATUS ${HEADERIMPLS})
+
+add_executable(movement_detector src/main.cpp ${HEADERIMPLS})
 target_include_directories(movement_detector PRIVATE ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(movement_detector ${OpenCV_LIBS})
 
