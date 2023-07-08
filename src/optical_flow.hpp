@@ -65,6 +65,10 @@ void harris_corner(const cv::Mat& im1, const cv::Mat& im2, const harris_corner_p
     cv::cornerHarris(im1, response1, params.neighbourhood_size, params.sobel_size, params.k, cv::BORDER_REPLICATE);
     cv::cornerHarris(im2, response2, params.neighbourhood_size, params.sobel_size, params.k, cv::BORDER_REPLICATE);
     cv::addWeighted(response1, 0.5, response2, 0.5, 0.0, out_response);
+    
+    // double min, max;
+    // cv::minMaxLoc(out_response, &min, &max);
+    // std::cout << "min response: " << min << "max response: " << max << std::endl;
 }
 
 void lucaskanade_flow(const cv::Mat& Ix, const cv::Mat& Iy, const cv::Mat& It,  const lucas_kanade_params& params, cv::Mat& out_u, cv::Mat& out_v) {
@@ -150,6 +154,22 @@ void calculate_flow(cv::Mat im1, cv::Mat im2, const flow_params& params, cv::Mat
             out_v = out_v.setTo(0.0, mask);
         }
     }
+}
+
+void show_flow(const cv::Mat& im1, const cv::Mat& u, const cv::Mat& v) {
+    cv::Mat im = im1.clone();
+    cv::Mat su, sv;
+    cv::GaussianBlur(u, su, cv::Size(), 3.0);
+    cv::GaussianBlur(v, sv, cv::Size(), 3.0);
+    for (uint i = 0; i < su.rows; i += 5) {
+        for (uint j = 0; j < su.cols; j += 5) {
+            cv::Point2f p1(j, i);
+            cv::Point2f p2(j + su.at<float>(i, j), i + sv.at<float>(i, j));
+            cv::arrowedLine(im, p1, p2, cv::Scalar(0, 0, 255), 1);
+        }
+    }
+    cv::imshow("Flow", im);
+    cv::waitKey(10);
 }
 
 #endif
